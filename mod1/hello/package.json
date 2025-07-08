@@ -1,0 +1,14 @@
+{
+  "name": "hello",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.0.0",
+    "hardhat": "^2.25.0",
+    "react-scripts": "5.0.1"
+  }
+}
