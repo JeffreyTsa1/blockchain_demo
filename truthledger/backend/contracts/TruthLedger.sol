@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 contract TruthLedger {
     address public owner;
@@ -27,28 +27,39 @@ contract TruthLedger {
     struct Revision { uint256 timestamp; string ipfsHash; address editor; uint256 cost; }
     struct Article {
         uint256 id; address author; string title; string category; string ipfsHash;
-        uint256 timestamp; bool retracted; int256 score;
+        string body; string[] tags; string sourceUrl; uint256 timestamp; bool retracted; int256 score;
     }
     uint256 public articleCounter;
     mapping(uint256 => Article) public articles;
     mapping(uint256 => Revision[]) public articleRevisions;
     uint256[] public articleIds;
 
-    event ArticleSubmitted(uint256 indexed id, address indexed author, string title, string category, string ipfsHash, uint256 timestamp);
+    event ArticleSubmitted(uint256 indexed id, address indexed author, string title, string category, string ipfsHash, string body, string[] tags, string sourceUrl, uint256 timestamp);
     event ArticleEdited(uint256 indexed id, address indexed editor, string newIpfsHash, uint256 cost, uint256 timestamp);
     event ArticleRetracted(uint256 indexed id, address indexed by);
 
-    function submitArticle(string calldata title, string calldata category, string calldata ipfsHash) external {
+    function submitArticle(
+        string calldata title, 
+        string calldata category, 
+        string calldata body,
+        string[] calldata tags,
+        string calldata sourceUrl
+    ) external {
         require(bytes(title).length > 0, "Empty title");
-        require(bytes(ipfsHash).length > 0, "Empty IPFS");
+        require(bytes(body).length > 0, "Empty body");
         articleCounter++;
+        
+        // Auto-generate IPFS hash using article counter and timestamp
+        string memory autoIpfsHash = string(abi.encodePacked("Qm", uint2str(articleCounter), uint2str(block.timestamp)));
+        
         articles[articleCounter] = Article({
             id: articleCounter, author: msg.sender, title: title, category: category,
-            ipfsHash: ipfsHash, timestamp: block.timestamp, retracted: false, score: 0
+            ipfsHash: autoIpfsHash, body: body, tags: tags, sourceUrl: sourceUrl,
+            timestamp: block.timestamp, retracted: false, score: 0
         });
         articleIds.push(articleCounter);
-        articleRevisions[articleCounter].push(Revision({timestamp:block.timestamp, ipfsHash:ipfsHash, editor:msg.sender, cost:0}));
-        emit ArticleSubmitted(articleCounter, msg.sender, title, category, ipfsHash, block.timestamp);
+        articleRevisions[articleCounter].push(Revision({timestamp:block.timestamp, ipfsHash:autoIpfsHash, editor:msg.sender, cost:0}));
+        emit ArticleSubmitted(articleCounter, msg.sender, title, category, autoIpfsHash, body, tags, sourceUrl, block.timestamp);
     }
     function getArticleIdsLength() external view returns (uint256){ return articleIds.length; }
 
@@ -90,4 +101,20 @@ contract TruthLedger {
     // helpers
     function getRevisionCount(uint256 articleId) external view returns (uint256){ return articleRevisions[articleId].length; }
     function getVoteCount(uint256 articleId) external view returns (uint256){ return votesByArticle[articleId].length; }
+    function getArticleTags(uint256 articleId) external view returns (string[] memory) {
+        require(articleId > 0 && articleId <= articleCounter, "Invalid id");
+        return articles[articleId].tags;
+    }
+    
+    function uint2str(uint256 _i) internal pure returns (string memory str) {
+        if (_i == 0) return "0";
+        uint256 j = _i;
+        uint256 length;
+        while (j != 0) { length++; j /= 10; }
+        bytes memory bstr = new bytes(length);
+        uint256 k = length;
+        j = _i;
+        while (j != 0) { bstr[--k] = bytes1(uint8(48 + j % 10)); j /= 10; }
+        str = string(bstr);
+    }
 }
